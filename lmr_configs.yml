@@ -1,0 +1,209 @@
+#===================================
+# NOTES by Feng Zhu (fengzhu@ucar.edu)
+#-----------------------------------
+# The below configs are tested with the latest version of cfr (v.2024.4.17),
+# and xarray<=2024.02 (2024.03 causes issues).
+# To upgrade:
+# pip install -U cfr
+# pip install xarray==2024.02
+#
+# In this example, I only tested assimilating corals, trees, ice cores, lake sediments.
+# Other proxy types are not tested and could be problematic sometimes.
+
+#===================================
+# BASIC
+#-----------------------------------
+output_indices:
+# output climate indices in addition to the tas field
+# below are all supported ones
+- gm   # global mean
+- nhm  # NH mean
+- shm  # SH mean
+
+
+recon_period:
+# reconstruction period, usually within [0, 2000]
+- 0
+- 2000
+
+recon_seeds:
+# the random seed for each Monte-Carlo iterations; the larger the better,
+# somewhere 10-20 is good for LMR cases
+- 1
+- 2
+- 3
+- 4
+- 5
+- 6
+- 7
+- 8
+- 9
+- 10
+
+prior_annualize_months:
+# the seasonality of the reconstruction,
+# the below means calendar year annual reconstruction
+# users may set [-12, 1, 2] to reconstruct the winter or [6, 7, 8] to reconstruct the summer or other arbitrary combinations
+- 1
+- 2
+- 3
+- 4
+- 5
+- 6
+- 7
+- 8
+- 9
+- 10
+- 11
+- 12
+
+filter_proxydb_kwargs:
+# this part is related to the selection of proxies to assimilate,
+# users may specify only archive names like the below, or specific "archive.proxy", e.g., coral.d18O, tree.TRW
+  by: ptype
+  keys:
+  - coral
+  - tree
+  - ice
+  - lake
+  - bivalve
+filter_proxydb_args: []  # do not change this
+
+#===================================
+# Advanced
+#-----------------------------------
+proxydb_path: PAGES2kv2   # the nickname of the loaded proxy database fetch from the cloud, full URL 'PAGES2kv2': 'https://github.com/fzhu2e/cfr-data/raw/main/pages2kv2.json'
+assim_frac: 0.75  # the fraction of proxies to assimilate during each Monte-Carlo iteration
+recon_loc_rad: 25000  # the localization radius
+nens: 100   # ensemble size for the prior, the larger the better, 100 is usually a good default
+
+# no psm_calib_period in my notebook 
+
+prior_anom_period:
+# the period to calculate the anomaly of the prior
+- 850
+- 1850
+
+# below indicates the resolution of the regridded prior
+# this step is **optional** and removing them will skip the step
+prior_regrid_nlat: 42
+prior_regrid_nlon: 63
+
+# the below part is specific to the prior datasets
+# and most of them should be configured by us, not the users; users may select dataset to use though
+prior_path:
+  pr: ./prev_data/ccsm4_last_millenium/pr_sfc_Amon_CCSM4_past1000_085001-185012.nc
+  tas: ./prev_data/ccsm4_last_millenium/tas_sfc_Amon_CCSM4_past1000_085001-185012.nc
+prior_lat_name: lat
+prior_lon_name: lon
+prior_time_name: time
+
+# the below part is specific to the loaded instrumental observations
+# and most of them should be configured by us, not the users; users may select dataset to use though
+obs_path:
+# cfr supports the below nicknames to fetch data from the cloud
+  pr: ./prev_data/GPCC_precip.mon.flux.1x1.v6.nc
+  tas: gistemp1200_ERSSTv4
+obs_rename_dict:
+  pr: precip         # the original variable name in the loaded pr dataset
+  tas: tempanomaly   # the original variable name in the loaded tas dataset
+obs_lat_name: lat    # the coord name in the loaded obs data
+obs_lon_name: lon    # the coord name in the loaded obs data
+obs_time_name: time  # the coord name in the loaded obs data
+obs_anom_period:
+# the period to calculate anomaly of the instrumental observations
+- 1951
+- 1980
+output_full_ens: false  # if true, cfr will output the full ensemble for the reconstruction field in shape (n_time, n_ens x n_MC, n_lat, n_lon)
+
+ptype_clim_dict:
+# the climate variable input to the PSMs for each proxy type
+# tas by default, execept for tree.TRW if Bilinear PSM is utilized (tas + pr)
+   tree.TRW: 
+    - tas
+    - pr
+   tree.MXD: 
+    - tas
+   coral.d18O: 
+    - tas
+   coral.SrCa: 
+    - tas
+   ice.d18O: 
+    - tas
+   ice.dD: 
+    - tas
+   lake.varve_thickness: 
+    - tas
+
+ptype_psm_dict:
+# PSM for each proxy type, Linear by default, and tree.TRW works with both Linear and Bilinear
+  tree.TRW: Bilinear
+  tree.MXD: Linear
+  coral.d18O: Linear
+  coral.SrCa: Linear
+  ice.d18O: Linear
+  ice.dD: Linear
+  lake.varve_thickness: Linear
+
+ptype_season_dict:
+  # Seasonality configurations from your notebook
+  tree.TRW: 
+    - [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    - [6, 7, 8]
+    - [3, 4, 5, 6, 7, 8]
+    - [6, 7, 8, 9, 10, 11]
+    - [-12, 1, 2]
+    - [-9, -10, -11, -12, 1, 2]
+    - [-12, 1, 2, 3, 4, 5]
+  tree.MXD:
+    - [6, 7, 8]
+    - [3, 4, 5, 6, 7, 8]
+    - [6, 7, 8, 9, 10, 11]
+    - [-12, 1, 2]
+    - [-9, -10, -11, -12, 1, 2]
+    - [-12, 1, 2, 3, 4, 5]
+  coral.d18O: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  coral.SrCa: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  ice.d18O: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  ice.dD: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  lake.varve_thickness: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] 
+
+nobs_lb: 25
+
+#===================================
+# Experimental (DO NOT CHANGE)
+#-----------------------------------
+
+allownan: false  # for tas reconstruction, there should not be any NaNs in the output; if the prior has NaNs (e.g., SST field), this should be turned on
+
+annualize_proxydb_ptypes:
+# this step aims to annualize specific proxy data with monthly resolution,
+# and only coral requires this step
+- coral
+annualize_proxydb_months: 
+# this step aims to annualize specific proxy data with monthly resolution,
+# and only coral requires this step
+- 1
+- 2
+- 3
+- 4
+- 5
+- 6
+- 7
+- 8
+- 9
+- 10
+- 11
+- 12
+
+compress_params:
+# xarray settings to compress the output data
+  zlib: true
+
+ptype_forward_dict: {}       # not used in LMR applications
+recon_sampling_mode: fixed   # the way of temporal sampling for the prior, no need to modify for LMR
+recon_timescale: 1           # annual resolution is assumed for LMR reconstructions, other numbers not tested
+recon_vars:                  # the field to reconstruct, always tas for our application
+- tas
+save_dirpath: ./recons/test-run-da-cfg   # the path to store the reconstruction results
+trim_prior: true             # not used in LMR applications
